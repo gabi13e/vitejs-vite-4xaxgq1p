@@ -225,8 +225,12 @@ const DEMO_LB = [
 ];
 
 // ── Claude API ────────────────────────────────────────────────────────────────
+const API_URL = typeof window !== "undefined" && window.location.hostname === "localhost"
+  ? "https://api.anthropic.com/v1/messages"
+  : "/.netlify/functions/claude";
+
 async function callClaude(messages, sys="") {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch(API_URL, {
     method:"POST", headers:{"Content-Type":"application/json"},
     body:JSON.stringify({model:ANTHROPIC_MODEL,max_tokens:1500,system:sys,messages}),
   });
@@ -236,7 +240,7 @@ async function callClaude(messages, sys="") {
 }
 
 async function callClaudeWithPDF(b64, prompt) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch(API_URL, {
     method:"POST", headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
       model:ANTHROPIC_MODEL, max_tokens:1500,
