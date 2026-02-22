@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import * as mammoth from "mammoth";
 
 const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
-const API_KEY = "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"; // remove before pushing!
+
 // ── CSS ──────────────────────────────────────────────────────────────────────
 const buildCss = (dark) => `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
@@ -239,24 +239,20 @@ async function callClaude(messages, sys="") {
   return d.content?.map(b=>b.text||"").join("")||"";
 }
 
-async function callClaudeWithPDF(b64, prompt) {
-  const res = await fetch(API_URL, {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      model:ANTHROPIC_MODEL, max_tokens:1500,
-      messages:[{role:"user",content:[
-        {type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},
-        {type:"text",text:prompt}
-      ]}]
-    }),
-  });
-  const d = await res.json();
-  if(d.error) throw new Error(d.error.message);
-  return d.content?.map(b=>b.text||"").join("")||"";
-}
-
-function readAsBase64(file) {
-  return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(file);});
+// Extract text from PDF client-side using pdf.js (avoids Netlify 6MB size limit)
+async function extractPdfText(file) {
+  const pdfjsLib = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: ab}).promise;
+  let text = "";
+  const maxPages = Math.min(pdf.numPages, 20);
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(s => s.str).join(" ") + "\n";
+  }
+  return text.slice(0, 15000);
 }
 function readAsText(file) {
   return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsText(file);});
@@ -342,7 +338,7 @@ Return ONLY valid JSON array (no markdown, no extra text): [{"front":"...","back
       let raw="";
       if(file) {
         const ext=file.name.split(".").pop().toLowerCase();
-        if(ext==="pdf") { const b64=await readAsBase64(file); raw=await callClaudeWithPDF(b64,prompt); }
+        if(ext==="pdf") { const txt=await extractPdfText(file); raw=await callClaude([{role:"user",content:prompt+"\n\nMaterial:\n"+txt}]); }
         else if(ext==="docx") { const txt=await readDocx(file); raw=await callClaude([{role:"user",content:prompt+"\n\nMaterial:\n"+txt}]); }
         else { const txt=await readAsText(file); raw=await callClaude([{role:"user",content:prompt+"\n\nMaterial:\n"+txt}]); }
       } else {
