@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import * as mammoth from "mammoth";
 
 const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
-
+const API_KEY = "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"; // remove before pushing!
 // ── CSS ──────────────────────────────────────────────────────────────────────
 const buildCss = (dark) => `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
